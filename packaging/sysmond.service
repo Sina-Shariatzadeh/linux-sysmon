@@ -1,0 +1,25 @@
+[Unit]
+Description=sysmon - Linux system monitoring daemon
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sysmond --config /etc/sysmon/sysmon.conf
+Restart=on-failure
+RestartSec=5
+
+# Root is needed to read other users' /proc/<pid>/exe and the auth log.
+# To run unprivileged instead, use a dedicated user in the 'adm' group
+# and accept that executable paths of other users' processes are hidden.
+User=root
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

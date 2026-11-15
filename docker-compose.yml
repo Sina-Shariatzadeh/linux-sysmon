@@ -1,0 +1,23 @@
+# Local PostgreSQL for development. The schema is applied automatically on
+# first start (fresh volume). Usage:  docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: sysmon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sysmon
+      POSTGRES_USER: sysmon
+      POSTGRES_PASSWORD: sysmon
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - sysmon-pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sysmon -d sysmon"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  sysmon-pgdata:

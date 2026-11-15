@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sysmon
+          POSTGRES_USER: sysmon
+          POSTGRES_PASSWORD: sysmon
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sysmon" --health-interval 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            libpqxx-dev libboost-dev libgtest-dev \
+            qt6-base-dev qt6-charts-dev libgl1-mesa-dev postgresql-client
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Schema + smoke test
+        env:
+          PGPASSWORD: sysmon
+        run: |
+          ./build/src/sysmond --init-db sql/schema.sql
+          ./build/src/sysmond --once --no-db | python3 -m json.tool > /dev/null
+          timeout --signal=INT 6 ./build/src/sysmond --no-live || true
+          psql -h localhost -U sysmon -d sysmon -c "SELECT count(*) AS frames FROM system_metrics;"
